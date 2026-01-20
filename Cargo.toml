@@ -1,0 +1,10 @@
+[workspace]
+members = ["bank_api", "client", "gossip", "harness", "node", "raft_core"]
+resolver = "3"
+
+[workspace.dependencies]
+tonic = "0.14.2"
+prost = "0.14.3"
+tonic-prost = "0.14.2"
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
+tonic-prost-build = "0.14.2"

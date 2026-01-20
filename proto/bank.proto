@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package bank.v1;
+
+// ----------------------------------------
+// Basic types
+// ----------------------------------------
+
+message AccountId {
+  string id = 1;        // Unique account identifier
+}
+
+message ClientTxId {
+  string id = 1;        // Idempotency key from the client
+}
+
+// ----------------------------------------
+// Bank requests & responses
+// ----------------------------------------
+
+message CreateAccountRequest {
+  AccountId account = 1;    // New account identifier
+  int64 initial_balance = 2; // Starting balance (in cents)
+}
+
+message CreateAccountResponse {
+  bool success = 1;
+  string message = 2;       // Optional: human-readable result
+}
+
+message GetBalanceRequest {
+  AccountId account = 1;
+}
+
+message GetBalanceResponse {
+  int64 balance = 1;       // Balance (in cents)
+}
+
+message TransferRequest {
+  AccountId from = 1;
+  AccountId to = 2;
+  int64 amount = 3;         // Transfer amount (in cents)
+  ClientTxId client_tx_id = 4;
+}
+
+enum TransferStatus {
+  UNKNOWN = 0;
+  COMMITTED_OK = 1;
+  COMMITTED_INSUFFICIENT_FUNDS = 2;
+  COMMITTED_INVALID_ACCOUNT = 3;
+}
+
+message TransferResponse {
+  TransferStatus status = 1;
+  string message = 2;        // Optional debug/failure info
+}
+
+message GetTransferStatusRequest {
+  ClientTxId client_tx_id = 1;
+}
+
+message GetTransferStatusResponse {
+  TransferStatus status = 1;
+  string message = 2;
+}
+
+// ----------------------------------------
+// Bank service
+// ----------------------------------------
+
+service BankService {
+  // Create a new account.
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+
+  // Get current balance of an account.
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+
+  // Initiate a funds transfer with idempotency key.
+  rpc Transfer(TransferRequest) returns (TransferResponse);
+
+  // Check status of a previously submitted transfer.
+  rpc GetTransferStatus(GetTransferStatusRequest) returns (GetTransferStatusResponse);
+}

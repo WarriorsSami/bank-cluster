@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package gossip.v1;
+
+// A single peer announcement
+message Peer {
+  string node_id = 1;         // unique identifier
+  string addr = 2;            // gRPC endpoint (host:port)
+  uint64 term = 3;            // optional – could help version peers
+}
+
+// Gossip payload (list of known peers)
+message GossipMessage {
+  repeated Peer peers = 1;
+}
+
+// Response acknowledging receipt
+message GossipResponse {
+  bool accepted = 1;
+}
+
+// Gossip service
+service Gossip {
+  // Exchange peer lists
+  rpc Exchange(GossipMessage) returns (GossipResponse);
+}

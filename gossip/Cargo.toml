@@ -1,0 +1,14 @@
+[package]
+name = "gossip"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+tonic.workspace = true
+prost.workspace = true
+tonic-prost.workspace = true
+
+[build-dependencies]
+tonic-prost-build.workspace = true
+

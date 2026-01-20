@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package raft.v1;
+
+// Identifier for a Raft node
+message NodeId {
+  string id = 1;         // e.g., host:port or UUID
+}
+
+// A single log entry in Raft
+message LogEntry {
+  uint64 index = 1;
+  uint64 term = 2;
+  bytes command = 3;      // opaque; could be your bank command bytes (proto serialization)
+}
+
+// -----------------------------
+// RequestVote RPC
+// -----------------------------
+message RequestVoteRequest {
+  uint64 term = 1;             // candidate’s term
+  NodeId candidate_id = 2;     // candidate
+  uint64 last_log_index = 3;   // index of candidate’s last log
+  uint64 last_log_term = 4;    // term of candidate’s last log
+}
+
+message RequestVoteResponse {
+  uint64 term = 1;            // currentTerm for candidate to update itself
+  bool vote_granted = 2;      // true means granted
+}
+
+// -----------------------------
+// AppendEntries RPC
+// -----------------------------
+message AppendEntriesRequest {
+  uint64 term = 1;                    // leader’s term
+  NodeId leader_id = 2;               // so follower can redirect clients
+  uint64 prev_log_index = 3;          // index of log entry immediately before new ones
+  uint64 prev_log_term = 4;           // term of prev_log_index
+  repeated LogEntry entries = 5;      // new log entries (empty for heartbeat)
+  uint64 leader_commit = 6;           // leader’s commit index
+}
+
+message AppendEntriesResponse {
+  uint64 term = 1;           // current term, for leader to update itself
+  bool success = 2;          // true if follower contained matching entry
+  // optional information for faster syncing can be added later
+}
+
+// -----------------------------
+// InstallSnapshot RPC (for log compaction)
+// -----------------------------
+message InstallSnapshotRequest {
+  uint64 term = 1;             // leader’s term
+  NodeId leader_id = 2;        // leader so follower can redirect clients
+  uint64 last_included_index = 3;
+  uint64 last_included_term = 4;
+  bytes snapshot_chunk = 5;    // chunk of snapshot data
+  bool done = 6;               // is this the final chunk?
+}
+
+message InstallSnapshotResponse {
+  uint64 term = 1;
+}
+
+// -----------------------------
+// Internal Submit (optional)
+// -----------------------------
+message SubmitRequest {
+  bytes command = 1;           // e.g., serialized bank command
+}
+
+message SubmitResponse {
+  bool accepted = 1;
+}
+
+// -----------------------------
+// Raft service
+// -----------------------------
+service Raft {
+  rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
+  rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+  rpc InstallSnapshot(InstallSnapshotRequest) returns (InstallSnapshotResponse);
+
+  // optional internal command submit (used by leader)
+  rpc Submit(SubmitRequest) returns (SubmitResponse);
+}

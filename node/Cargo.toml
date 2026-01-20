@@ -1,0 +1,9 @@
+[package]
+name = "node"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tonic.workspace = true
+tokio.workspace = true
+bank-api = { path = "../bank_api" }

@@ -8,3 +8,6 @@ prost = "0.14.3"
 tonic-prost = "0.14.2"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 tonic-prost-build = "0.14.2"
+bytes = "1.11.0"
+byteorder = "1.5.0"
+tempfile = "3.24.0"

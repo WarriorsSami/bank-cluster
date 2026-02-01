@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bank-api = { path = "../bank_api" }
 tonic.workspace = true
 tokio.workspace = true
-bank-api = { path = "../bank_api" }
+bytes.workspace = true
+byteorder.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

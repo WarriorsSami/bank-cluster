@@ -32,7 +32,7 @@ A distributed banking proof-of-concept in Rust using **gRPC**, **Raft consensus*
 ## 🗃️ Milestone 1 — Single-node WAL + deterministic state machine
 
 ### Checklist
-- [ ] Create WAL module (append + replay)
+- [x] Create WAL module (append + replay)
 - [ ] Define state machine:
     - accounts map
     - dedupe map (`ClientTxId -> outcome`)

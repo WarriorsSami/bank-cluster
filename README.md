@@ -33,7 +33,7 @@ A distributed banking proof-of-concept in Rust using **gRPC**, **Raft consensus*
 
 ### Checklist
 - [x] Create WAL module (append + replay)
-- [ ] Define state machine:
+- [x] Define state machine:
     - accounts map
     - dedupe map (`ClientTxId -> outcome`)
 - [ ] Implement gRPC `BankService`
@@ -41,7 +41,7 @@ A distributed banking proof-of-concept in Rust using **gRPC**, **Raft consensus*
     - `GetBalance`
     - `Transfer`
     - `GetTransferStatus`
-- [ ] Implement idempotent transfer logic
+- [x] Implement idempotent transfer logic
 - [ ] Implement WAL persistence and replay on startup
 
 **Exit criteria**

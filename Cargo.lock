@@ -459,6 +459,7 @@ dependencies = [
  "bank-api",
  "byteorder",
  "bytes",
+ "prost",
  "tempfile",
  "tokio",
  "tonic",

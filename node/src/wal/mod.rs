@@ -1,2 +1,2 @@
-mod wal;
-mod entry;
+pub mod wal;
+pub mod entry;

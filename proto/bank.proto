@@ -18,6 +18,8 @@ message ClientTxId {
 // Bank requests & responses
 // ----------------------------------------
 
+
+
 message CreateAccountRequest {
   AccountId account = 1;    // New account identifier
   int64 initial_balance = 2; // Starting balance (in cents)
@@ -62,6 +64,17 @@ message GetTransferStatusRequest {
 message GetTransferStatusResponse {
   TransferStatus status = 1;
   string message = 2;
+}
+
+// ----------------------------------------
+// WAL / Raft command (opaque bytes in LogEntry.command)
+// ----------------------------------------
+
+message BankCommand {
+  oneof command {
+    CreateAccountRequest create_account = 1;
+    TransferRequest      transfer       = 2;
+  }
 }
 
 // ----------------------------------------

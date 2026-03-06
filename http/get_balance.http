@@ -1,0 +1,27 @@
+### Get balance for an existing account
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "alice"
+  }
+}
+
+### Get balance for a second account
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "bob"
+  }
+}
+
+### Get balance for a non-existent account — expects NOT_FOUND
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "ghost"
+  }
+}
+

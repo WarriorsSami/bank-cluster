@@ -1,0 +1,64 @@
+### Successful transfer — alice sends 400 to bob
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "bob"
+  },
+  "amount": 400,
+  "client_tx_id": {
+    "id": "tx-1"
+  }
+}
+
+### Retry the same transfer — same client_tx_id, expects COMMITTED_OK (idempotent)
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "bob"
+  },
+  "amount": 400,
+  "client_tx_id": {
+    "id": "tx-1"
+  }
+}
+
+### Insufficient funds — alice tries to send more than her balance
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "bob"
+  },
+  "amount": 999999,
+  "client_tx_id": {
+    "id": "tx-2"
+  }
+}
+
+### Invalid account — destination does not exist
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "nobody"
+  },
+  "amount": 100,
+  "client_tx_id": {
+    "id": "tx-3"
+  }
+}
+

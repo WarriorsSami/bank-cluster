@@ -1,0 +1,27 @@
+### Status of a committed successful transfer
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetTransferStatus
+
+{
+  "client_tx_id": {
+    "id": "tx-1"
+  }
+}
+
+### Status of a committed failed transfer (insufficient funds)
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetTransferStatus
+
+{
+  "client_tx_id": {
+    "id": "tx-2"
+  }
+}
+
+### Status of a transfer that was never submitted — expects NOT_FOUND
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetTransferStatus
+
+{
+  "client_tx_id": {
+    "id": "never-submitted"
+  }
+}
+

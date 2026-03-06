@@ -1,0 +1,30 @@
+### Create a new account — happy path
+GRPC {{host}}:{{port}}/bank.v1.BankService/CreateAccount
+
+{
+  "account": {
+    "id": "alice"
+  },
+  "initial_balance": 1000
+}
+
+### Create a second account
+GRPC {{host}}:{{port}}/bank.v1.BankService/CreateAccount
+
+{
+  "account": {
+    "id": "bob"
+  },
+  "initial_balance": 0
+}
+
+### Duplicate account — expects success: false
+GRPC {{host}}:{{port}}/bank.v1.BankService/CreateAccount
+
+{
+  "account": {
+    "id": "alice"
+  },
+  "initial_balance": 999
+}
+

@@ -1,0 +1,124 @@
+### End-to-end smoke test — run these requests top-to-bottom in order.
+###
+### 1. Create alice with 1000
+GRPC {{host}}:{{port}}/bank.v1.BankService/CreateAccount
+
+{
+  "account": {
+    "id": "alice"
+  },
+  "initial_balance": 1000
+}
+
+### 2. Create bob with 0
+GRPC {{host}}:{{port}}/bank.v1.BankService/CreateAccount
+
+{
+  "account": {
+    "id": "bob"
+  },
+  "initial_balance": 0
+}
+
+### 3. Check alice's opening balance — expects 1000
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "alice"
+  }
+}
+
+### 4. Transfer 400 from alice to bob
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "bob"
+  },
+  "amount": 400,
+  "client_tx_id": {
+    "id": "e2e-tx-1"
+  }
+}
+
+### 5. Retry the same transfer — expects COMMITTED_OK, balance must not change again
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "bob"
+  },
+  "amount": 400,
+  "client_tx_id": {
+    "id": "e2e-tx-1"
+  }
+}
+
+### 6. alice's balance after transfer — expects 600
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "alice"
+  }
+}
+
+### 7. bob's balance after transfer — expects 400
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "bob"
+  }
+}
+
+### 8. Check the transfer status — expects COMMITTED_OK
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetTransferStatus
+
+{
+  "client_tx_id": {
+    "id": "e2e-tx-1"
+  }
+}
+
+### 9. Attempt an overdraft — expects COMMITTED_INSUFFICIENT_FUNDS
+GRPC {{host}}:{{port}}/bank.v1.BankService/Transfer
+
+{
+  "from": {
+    "id": "alice"
+  },
+  "to": {
+    "id": "bob"
+  },
+  "amount": 9999,
+  "client_tx_id": {
+    "id": "e2e-tx-2"
+  }
+}
+
+### 10. Check the failed transfer status — expects COMMITTED_INSUFFICIENT_FUNDS
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetTransferStatus
+
+{
+  "client_tx_id": {
+    "id": "e2e-tx-2"
+  }
+}
+
+### 11. alice's balance is still 600 — overdraft had no effect
+GRPC {{host}}:{{port}}/bank.v1.BankService/GetBalance
+
+{
+  "account": {
+    "id": "alice"
+  }
+}
+

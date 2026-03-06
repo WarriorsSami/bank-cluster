@@ -1,0 +1,21 @@
+[profile.default]
+# Show stdout/stderr of failing tests immediately.
+failure-output = "immediate"
+# Only print output for failed tests (suppress noise from passing ones).
+success-output = "never"
+# Re-run a failing test once before reporting it as a failure,
+# reducing flakiness from timing-sensitive async tests (e.g. gRPC server startup).
+retries = 1
+
+[profile.default.junit]
+path = "target/nextest/default/junit.xml"
+
+# CI profile: stricter — no retries, all output captured.
+[profile.ci]
+failure-output = "immediate-final"
+success-output = "never"
+retries = 0
+
+[profile.ci.junit]
+path = "target/nextest/ci/junit.xml"
+

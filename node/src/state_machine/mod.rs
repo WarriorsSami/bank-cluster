@@ -1,31 +1,50 @@
-mod command;
-#[cfg(test)]
-mod integration_tests;
+pub(crate) mod command;
 
 pub use command::{BankCommand, DecodeError};
 
-use bank_api::bank::TransferStatus;
 use std::collections::HashMap;
 
 use crate::wal::entry::LogEntry;
 
 /// Result of a `CreateAccount` command.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CreateAccountResult {
     Ok,
     AlreadyExists,
 }
 
+/// Result of a `Transfer` command.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum TransferResult {
+    Ok,
+    InsufficientFunds,
+    InvalidAccount,
+}
+
+/// Typed wrapper around the two possible `apply` outcomes.
+#[derive(Debug, PartialEq)]
+pub enum ApplyResult {
+    CreateAccount(CreateAccountResult),
+    Transfer(TransferResult),
+}
+
 /// Pure in-memory projection of all committed WAL entries.
 #[derive(Debug, Default)]
 pub struct StateMachine {
+    last_applied_index: u64,
     accounts: HashMap<String, i64>,
-    dedupe: HashMap<String, TransferStatus>,
+    dedupe: HashMap<String, TransferResult>,
 }
 
 impl StateMachine {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self::default()
+    }
+
+    /// Returns the index of the last-applied WAL entry. This is persisted in the state machine
+    /// so that we can verify correct ordering and detect gaps when applying new entries.
+    pub fn last_applied_index(&self) -> u64 {
+        self.last_applied_index
     }
 
     /// Reconstruct state by replaying all WAL entries from scratch.
@@ -33,15 +52,22 @@ impl StateMachine {
         let mut sm = Self::new();
         for entry in entries {
             let cmd = BankCommand::decode_from_bytes(&entry.command)?;
-            sm.apply(cmd);
+            sm.apply(entry.index, cmd);
         }
         Ok(sm)
     }
 
     /// Apply a single command, mutating state. Returns the outcome.
     /// This is the only path through which state ever changes.
-    pub fn apply(&mut self, cmd: BankCommand) -> ApplyResult {
-        match cmd {
+    pub fn apply(&mut self, index: u64, cmd: BankCommand) -> ApplyResult {
+        // TODO: replace panic with error handling and let caller decide how to proceed (e.g. crash, skip, etc.)
+        assert_eq!(
+            index,
+            self.last_applied_index + 1,
+            "WAL entries must be applied in order without gaps"
+        );
+
+        let apply_result = match cmd {
             BankCommand::CreateAccount {
                 account_id,
                 initial_balance,
@@ -53,7 +79,11 @@ impl StateMachine {
                 amount,
                 client_tx_id,
             } => ApplyResult::Transfer(self.apply_transfer(from, to, amount, client_tx_id)),
-        }
+        };
+
+        self.last_applied_index = index;
+
+        apply_result
     }
 
     fn apply_create_account(
@@ -74,24 +104,24 @@ impl StateMachine {
         to: String,
         amount: i64,
         client_tx_id: String,
-    ) -> TransferStatus {
+    ) -> TransferResult {
         // Idempotency: return the cached outcome if already seen.
-        if let Some(&status) = self.dedupe.get(&client_tx_id) {
-            return status;
+        if let Some(&result) = self.dedupe.get(&client_tx_id) {
+            return result;
         }
 
-        let status = if !self.accounts.contains_key(&from) || !self.accounts.contains_key(&to) {
-            TransferStatus::CommittedInvalidAccount
+        let result = if !self.accounts.contains_key(&from) || !self.accounts.contains_key(&to) {
+            TransferResult::InvalidAccount
         } else if self.accounts[&from] < amount {
-            TransferStatus::CommittedInsufficientFunds
+            TransferResult::InsufficientFunds
         } else {
             *self.accounts.get_mut(&from).unwrap() -= amount;
             *self.accounts.get_mut(&to).unwrap() += amount;
-            TransferStatus::CommittedOk
+            TransferResult::Ok
         };
-        
-        self.dedupe.insert(client_tx_id, status);
-        status
+
+        self.dedupe.insert(client_tx_id, result);
+        result
     }
 
     // ---- Read-only accessors ------------------------------------------------
@@ -103,16 +133,9 @@ impl StateMachine {
 
     /// Returns the cached transfer outcome, or `None` if the `client_tx_id`
     /// has never been submitted.
-    pub fn get_transfer_status(&self, client_tx_id: &str) -> Option<TransferStatus> {
+    pub fn get_transfer_status(&self, client_tx_id: &str) -> Option<TransferResult> {
         self.dedupe.get(client_tx_id).copied()
     }
-}
-
-/// Typed wrapper around the two possible `apply` outcomes.
-#[derive(Debug, PartialEq)]
-pub enum ApplyResult {
-    CreateAccount(CreateAccountResult),
-    Transfer(TransferStatus),
 }
 
 #[cfg(test)]
@@ -132,10 +155,13 @@ mod tests {
     #[test]
     fn create_account_ok() {
         let mut sm = StateMachine::new();
-        let result = sm.apply(BankCommand::CreateAccount {
-            account_id: "alice".into(),
-            initial_balance: 500,
-        });
+        let result = sm.apply(
+            1,
+            BankCommand::CreateAccount {
+                account_id: "alice".into(),
+                initial_balance: 500,
+            },
+        );
         assert_eq!(result, ApplyResult::CreateAccount(CreateAccountResult::Ok));
         assert_eq!(sm.get_balance("alice"), Some(500));
     }
@@ -143,14 +169,20 @@ mod tests {
     #[test]
     fn create_account_duplicate() {
         let mut sm = StateMachine::new();
-        sm.apply(BankCommand::CreateAccount {
-            account_id: "alice".into(),
-            initial_balance: 500,
-        });
-        let result = sm.apply(BankCommand::CreateAccount {
-            account_id: "alice".into(),
-            initial_balance: 999,
-        });
+        sm.apply(
+            1,
+            BankCommand::CreateAccount {
+                account_id: "alice".into(),
+                initial_balance: 500,
+            },
+        );
+        let result = sm.apply(
+            2,
+            BankCommand::CreateAccount {
+                account_id: "alice".into(),
+                initial_balance: 999,
+            },
+        );
         assert_eq!(
             result,
             ApplyResult::CreateAccount(CreateAccountResult::AlreadyExists)
@@ -163,30 +195,36 @@ mod tests {
 
     fn seeded_sm() -> StateMachine {
         let mut sm = StateMachine::new();
-        sm.apply(BankCommand::CreateAccount {
-            account_id: "alice".into(),
-            initial_balance: 1000,
-        });
-        sm.apply(BankCommand::CreateAccount {
-            account_id: "bob".into(),
-            initial_balance: 0,
-        });
+        sm.apply(
+            1,
+            BankCommand::CreateAccount {
+                account_id: "alice".into(),
+                initial_balance: 1000,
+            },
+        );
+        sm.apply(
+            2,
+            BankCommand::CreateAccount {
+                account_id: "bob".into(),
+                initial_balance: 0,
+            },
+        );
         sm
     }
 
     #[test]
     fn transfer_ok() {
         let mut sm = seeded_sm();
-        let result = sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "bob".into(),
-            amount: 300,
-            client_tx_id: "tx-1".into(),
-        });
-        assert_eq!(
-            result,
-            ApplyResult::Transfer(TransferStatus::CommittedOk)
+        let result = sm.apply(
+            3,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "bob".into(),
+                amount: 300,
+                client_tx_id: "tx-1".into(),
+            },
         );
+        assert_eq!(result, ApplyResult::Transfer(TransferResult::Ok));
         assert_eq!(sm.get_balance("alice"), Some(700));
         assert_eq!(sm.get_balance("bob"), Some(300));
     }
@@ -194,15 +232,18 @@ mod tests {
     #[test]
     fn transfer_insufficient_funds() {
         let mut sm = seeded_sm();
-        let result = sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "bob".into(),
-            amount: 9999,
-            client_tx_id: "tx-2".into(),
-        });
+        let result = sm.apply(
+            3,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "bob".into(),
+                amount: 9999,
+                client_tx_id: "tx-2".into(),
+            },
+        );
         assert_eq!(
             result,
-            ApplyResult::Transfer(TransferStatus::CommittedInsufficientFunds)
+            ApplyResult::Transfer(TransferResult::InsufficientFunds)
         );
         // Balances unchanged
         assert_eq!(sm.get_balance("alice"), Some(1000));
@@ -212,38 +253,44 @@ mod tests {
     #[test]
     fn transfer_invalid_account() {
         let mut sm = seeded_sm();
-        let result = sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "nobody".into(),
-            amount: 100,
-            client_tx_id: "tx-3".into(),
-        });
+        let result = sm.apply(
+            3,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "nobody".into(),
+                amount: 100,
+                client_tx_id: "tx-3".into(),
+            },
+        );
         assert_eq!(
             result,
-            ApplyResult::Transfer(TransferStatus::CommittedInvalidAccount)
+            ApplyResult::Transfer(TransferResult::InvalidAccount)
         );
     }
 
     #[test]
     fn transfer_idempotent_success() {
         let mut sm = seeded_sm();
-        sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "bob".into(),
-            amount: 100,
-            client_tx_id: "tx-4".into(),
-        });
-        // Retry with the same client_tx_id
-        let result = sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "bob".into(),
-            amount: 100,
-            client_tx_id: "tx-4".into(),
-        });
-        assert_eq!(
-            result,
-            ApplyResult::Transfer(TransferStatus::CommittedOk)
+        sm.apply(
+            3,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "bob".into(),
+                amount: 100,
+                client_tx_id: "tx-4".into(),
+            },
         );
+        // Retry with the same client_tx_id
+        let result = sm.apply(
+            4,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "bob".into(),
+                amount: 100,
+                client_tx_id: "tx-4".into(),
+            },
+        );
+        assert_eq!(result, ApplyResult::Transfer(TransferResult::Ok));
         // Applied only once
         assert_eq!(sm.get_balance("alice"), Some(900));
         assert_eq!(sm.get_balance("bob"), Some(100));
@@ -252,21 +299,27 @@ mod tests {
     #[test]
     fn transfer_idempotent_failure() {
         let mut sm = seeded_sm();
-        sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "bob".into(),
-            amount: 9999,
-            client_tx_id: "tx-5".into(),
-        });
-        let result = sm.apply(BankCommand::Transfer {
-            from: "alice".into(),
-            to: "bob".into(),
-            amount: 9999,
-            client_tx_id: "tx-5".into(),
-        });
+        sm.apply(
+            3,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "bob".into(),
+                amount: 9999,
+                client_tx_id: "tx-5".into(),
+            },
+        );
+        let result = sm.apply(
+            4,
+            BankCommand::Transfer {
+                from: "alice".into(),
+                to: "bob".into(),
+                amount: 9999,
+                client_tx_id: "tx-5".into(),
+            },
+        );
         assert_eq!(
             result,
-            ApplyResult::Transfer(TransferStatus::CommittedInsufficientFunds)
+            ApplyResult::Transfer(TransferResult::InsufficientFunds)
         );
     }
 
@@ -317,7 +370,7 @@ mod tests {
         assert_eq!(sm.get_balance("bob"), Some(200));
         assert_eq!(
             sm.get_transfer_status("tx-restore"),
-            Some(TransferStatus::CommittedOk)
+            Some(TransferResult::Ok)
         );
     }
 }

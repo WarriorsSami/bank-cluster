@@ -1,6 +1,6 @@
 use bank_api::bank::{
-    bank_command::Command, AccountId, BankCommand as ProtoBankCommand, ClientTxId,
-    CreateAccountRequest, TransferRequest,
+    AccountId, BankCommand as ProtoBankCommand, ClientTxId, CreateAccountRequest, TransferRequest,
+    bank_command::Command,
 };
 use bytes::Bytes;
 use prost::Message;
@@ -62,10 +62,7 @@ impl BankCommand {
 
         match proto.command {
             Some(Command::CreateAccount(req)) => {
-                let account_id = req
-                    .account
-                    .ok_or(DecodeError::MissingField("account"))?
-                    .id;
+                let account_id = req.account.ok_or(DecodeError::MissingField("account"))?.id;
                 Ok(BankCommand::CreateAccount {
                     account_id,
                     initial_balance: req.initial_balance,

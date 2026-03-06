@@ -1,6 +1,6 @@
-use std::io::Read;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use bytes::Bytes;
+use std::io::Read;
 
 #[derive(Clone, Debug)]
 pub struct LogEntry {
@@ -40,8 +40,8 @@ impl LogEntry {
 
 #[cfg(test)]
 pub(super) mod tests {
-    use bytes::Bytes;
     use crate::wal::entry::LogEntry;
+    use bytes::Bytes;
 
     pub(crate) fn create_test_entry(index: u64, term: u64, command: &[u8]) -> LogEntry {
         LogEntry {

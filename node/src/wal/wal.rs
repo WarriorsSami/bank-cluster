@@ -1,5 +1,6 @@
-use std::io::{Seek, Write};
 use crate::wal::entry::LogEntry;
+use std::io::{Seek, Write};
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct Wal {
@@ -8,7 +9,7 @@ pub struct Wal {
 }
 
 impl Wal {
-    pub fn new(path: &str) -> std::io::Result<Self> {
+    pub fn new(path: impl AsRef<Path>) -> std::io::Result<Self> {
         let file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -18,6 +19,10 @@ impl Wal {
         let last_index = Self::scan_last_index(&file)?;
 
         Ok(Self { file, last_index })
+    }
+
+    pub fn last_index(&self) -> u64 {
+        self.last_index
     }
 
     fn scan_last_index(file: &std::fs::File) -> std::io::Result<u64> {
@@ -78,11 +83,11 @@ impl Wal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::wal::entry::tests::create_test_entry;
     use bytes::Bytes;
     use std::fs;
     use std::io::Write;
     use tempfile::{NamedTempFile, TempDir};
-    use crate::wal::entry::tests::create_test_entry;
 
     #[test]
     fn test_wal_creation_new_file() {
@@ -417,9 +422,11 @@ mod tests {
                 let expected_index = (i + 1) as u64;
                 assert_eq!(entry.index, expected_index);
                 assert_eq!(entry.term, expected_index);
-                assert_eq!(entry.command, Bytes::from(format!("cycle test {}", expected_index)));
+                assert_eq!(
+                    entry.command,
+                    Bytes::from(format!("cycle test {}", expected_index))
+                );
             }
         }
     }
 }
-

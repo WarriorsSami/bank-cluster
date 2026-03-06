@@ -35,7 +35,7 @@ message GetBalanceRequest {
 }
 
 message GetBalanceResponse {
-  int64 balance = 1;       // Balance (in cents)
+  optional int64 balance = 1;       // Balance (in cents)
 }
 
 message TransferRequest {

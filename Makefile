@@ -20,14 +20,14 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "  install        Install all tools and git hooks (run this after cloning)"
-	@echo "  install-tools  Install bacon and cargo-nextest"
+	@echo "  install-tools  Install bacon, cargo-nextest and verify protoc"
 	@echo "  install-hooks  Install the pre-commit git hook"
 	@echo ""
 
 ## install: install all tools and git hooks
 install: install-tools install-hooks
 
-## install-tools: install bacon and cargo-nextest
+## install-tools: install bacon, cargo-nextest and protoc
 install-tools:
 	@echo ">>> Installing bacon v$(BACON_VERSION)..."
 	@if ! bacon --version 2>/dev/null | grep -q "$(BACON_VERSION)"; then \
@@ -40,6 +40,16 @@ install-tools:
 		curl -LsSf https://get.nexte.st/$(NEXTEST_VERSION)/$(NEXTEST_TARGET) | tar zxf - -C ~/.cargo/bin; \
 	else \
 		echo "    cargo-nextest v$(NEXTEST_VERSION) already installed, skipping."; \
+	fi
+	@echo ">>> Checking protoc..."
+	@if ! command -v protoc >/dev/null 2>&1; then \
+		echo "    protoc not found. Install it with:"; \
+		echo "      macOS:  brew install protobuf"; \
+		echo "      Debian: apt-get install protobuf-compiler"; \
+		echo "      or download from https://github.com/protocolbuffers/protobuf/releases"; \
+		exit 1; \
+	else \
+		echo "    protoc $$(protoc --version) already installed, skipping."; \
 	fi
 
 ## install-hooks: install the pre-commit git hook

@@ -1,10 +1,9 @@
-/// In-process gRPC integration tests.
-///
-/// Each test spins up a real tonic server bound to a random port, connects a
-/// generated client to it, and exercises the full request → service → store →
-/// WAL → state machine → response path.  A fresh temporary WAL file is used
-/// per test so tests are fully isolated.
-
+//! In-process gRPC integration tests.
+//!
+//! Each test spins up a real tonic server bound to a random port, connects a
+//! generated client to it, and exercises the full request → service → store →
+//! WAL → state machine → response path.  A fresh temporary WAL file is used
+//! per test so tests are fully isolated.
 use crate::service::service::BankGrpcService;
 use crate::store::store::Store;
 use bank_api::bank::bank_service_client::BankServiceClient;
@@ -59,6 +58,7 @@ async fn spawn_server(wal_path: &str) -> (BankServiceClient<Channel>, ServerHand
 }
 
 /// Dropping this shuts the server down.
+#[allow(dead_code)]
 struct ServerHandle(tokio::sync::oneshot::Sender<()>);
 
 fn account(id: &str) -> AccountId {

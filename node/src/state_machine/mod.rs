@@ -41,8 +41,8 @@ impl StateMachine {
         Self::default()
     }
 
-    /// Returns the index of the last-applied WAL entry. This is persisted in the state machine
-    /// so that we can verify correct ordering and detect gaps when applying new entries.
+    /// Returns the index of the last-applied WAL entry.
+    #[allow(dead_code)]
     pub fn last_applied_index(&self) -> u64 {
         self.last_applied_index
     }
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn restore_from_wal_entries() {
-        let cmds = vec![
+        let cmds = [
             BankCommand::CreateAccount {
                 account_id: "alice".into(),
                 initial_balance: 500,

@@ -73,7 +73,9 @@ impl BankService for BankGrpcService {
 
         let store = self.store.lock().await;
         match store.get_balance(&account_id) {
-            Some(balance) => Ok(Response::new(GetBalanceResponse { balance: Some(balance) })),
+            Some(balance) => Ok(Response::new(GetBalanceResponse {
+                balance: Some(balance),
+            })),
             None => Err(Status::not_found(format!(
                 "account '{account_id}' not found"
             ))),

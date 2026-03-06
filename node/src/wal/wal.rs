@@ -325,7 +325,7 @@ mod tests {
         let mut wal = Wal::new(path).unwrap();
 
         // Create entries with progressively larger commands
-        let sizes = vec![100, 1000, 10000, 100000];
+        let sizes = [100, 1000, 10000, 100000];
         for (i, size) in sizes.iter().enumerate() {
             let large_command = vec![(i + 1) as u8; *size];
             let entry = create_test_entry((i + 1) as u64, 1, &large_command);

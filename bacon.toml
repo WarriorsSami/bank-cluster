@@ -7,6 +7,15 @@
 default_job = "check-all"
 env.CARGO_TERM_COLOR = "always"
 
+# ---- Format -----------------------------------------------------------------
+
+# In bacon: shows which files are unformatted.
+# In the pre-commit hook: run with --check so it fails without modifying files.
+[jobs.fmt]
+command = ["cargo", "fmt", "--all"]
+need_stdout = false
+allow_warnings = true
+
 # ---- Check ------------------------------------------------------------------
 
 [jobs.check]
@@ -31,6 +40,13 @@ command = [
     "-W", "clippy::pedantic",
 ]
 need_stdout = false
+
+# ---- Build ------------------------------------------------------------------
+
+[jobs.build]
+command = ["cargo", "build", "--all-targets"]
+need_stdout = false
+allow_warnings = true
 
 # ---- Test -------------------------------------------------------------------
 
@@ -70,6 +86,8 @@ on_change_strategy = "kill_then_restart"
 # ---- Keybindings ------------------------------------------------------------
 
 [keybindings]
+f = "job:fmt"
+b = "job:build"
 c = "job:clippy"
 p = "job:pedantic"
 t = "job:test"

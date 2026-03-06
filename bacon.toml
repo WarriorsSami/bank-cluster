@@ -1,0 +1,78 @@
+#:schema https://dystroy.org/bacon/.bacon.schema.json
+
+# bacon configuration for bank-cluster
+# Run `bacon` to start watching. Default job: check-all.
+# Press `?` inside bacon to see all shortcuts.
+
+default_job = "check-all"
+env.CARGO_TERM_COLOR = "always"
+
+# ---- Check ------------------------------------------------------------------
+
+[jobs.check]
+command = ["cargo", "check"]
+need_stdout = false
+
+[jobs.check-all]
+command = ["cargo", "check", "--all-targets"]
+need_stdout = false
+
+# ---- Clippy -----------------------------------------------------------------
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--all-targets"]
+need_stdout = false
+
+[jobs.pedantic]
+command = [
+    "cargo", "clippy",
+    "--all-targets",
+    "--",
+    "-W", "clippy::pedantic",
+]
+need_stdout = false
+
+# ---- Test -------------------------------------------------------------------
+
+[jobs.test]
+command = ["cargo", "nextest", "run", "--all"]
+need_stdout = true
+
+[jobs.test-node]
+command = ["cargo", "nextest", "run", "-p", "node"]
+need_stdout = true
+
+# ---- Docs -------------------------------------------------------------------
+
+[jobs.doc]
+command = ["cargo", "doc", "--no-deps"]
+need_stdout = false
+
+[jobs.doc-open]
+command = ["cargo", "doc", "--no-deps", "--open"]
+need_stdout = false
+on_success = "back"
+
+# ---- Run --------------------------------------------------------------------
+
+# Hot-reload job: kills and restarts the node binary on every source change.
+# Press 'r' to switch to this job, F5 to manually restart.
+[jobs.run-node]
+command = [
+    "cargo", "run",
+    "--bin", "node",
+]
+need_stdout = true
+allow_warnings = true
+background = false
+on_change_strategy = "kill_then_restart"
+
+# ---- Keybindings ------------------------------------------------------------
+
+[keybindings]
+c = "job:clippy"
+p = "job:pedantic"
+t = "job:test"
+n = "job:test-node"
+r = "job:run-node"
+d = "job:doc"

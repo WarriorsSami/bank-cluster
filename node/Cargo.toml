@@ -17,4 +17,4 @@ thiserror.workspace = true
 tempfile.workspace = true
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "test-util"] }
 tonic = { version = "0.14.5", features = ["transport"] }
-tokio-retry = "0.3.0"
+tokio-retry = "0.3.1"
